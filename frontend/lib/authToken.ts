@@ -1,4 +1,4 @@
-const AUTH_STORAGE_KEY = "assignment1_auth_token";
+const AUTH_STORAGE_KEY = "studio_supply_auth_token";
 
 export function getAuthToken(): string | null {
   if (typeof window === "undefined") return null;

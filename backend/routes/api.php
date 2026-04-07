@@ -1,22 +1,46 @@
 <?php
 
+use App\Http\Controllers\Api\AdminWebSessionController;
 use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\CartAttachController;
 use App\Http\Controllers\Api\CartController;
 use App\Http\Controllers\Api\CartSessionController;
 use App\Http\Controllers\Api\CheckoutController;
+use App\Http\Controllers\Api\LocalePreferenceController;
 use App\Http\Controllers\Api\ProductController;
 use App\Http\Controllers\Api\ProfileController;
+use Illuminate\Cookie\Middleware\AddQueuedCookiesToResponse;
+use Illuminate\Cookie\Middleware\EncryptCookies;
+use Illuminate\Session\Middleware\StartSession;
 use Illuminate\Support\Facades\Route;
+
+Route::middleware([
+    EncryptCookies::class,
+    AddQueuedCookiesToResponse::class,
+])->group(function (): void {
+    Route::get('/locale', [LocalePreferenceController::class, 'show']);
+    Route::post('/locale', [LocalePreferenceController::class, 'store']);
+});
 
 Route::post('/register', [AuthController::class, 'register']);
 Route::post('/login', [AuthController::class, 'login']);
+
+Route::middleware([
+    EncryptCookies::class,
+    AddQueuedCookiesToResponse::class,
+    StartSession::class,
+    'auth:sanctum',
+])->group(function (): void {
+    Route::post('/admin/web-session', [AdminWebSessionController::class, 'store']);
+    Route::delete('/admin/web-session', [AdminWebSessionController::class, 'destroy']);
+});
 
 Route::middleware('auth:sanctum')->group(function () {
     Route::post('/logout', [AuthController::class, 'logout']);
     Route::get('/user', [AuthController::class, 'user']);
     Route::get('/profile', [ProfileController::class, 'show']);
     Route::patch('/profile', [ProfileController::class, 'update']);
+    Route::patch('/password', [ProfileController::class, 'updatePassword']);
     Route::post('/cart/attach', [CartAttachController::class, 'store']);
     Route::post('/checkout', [CheckoutController::class, 'store']);
 });

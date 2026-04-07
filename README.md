@@ -1,6 +1,6 @@
-# Assignment 1 — E‑commerce shopping cart (single-page SPA)
+# E‑commerce shopping cart (single-page SPA)
 
-**Next.js (TypeScript)** frontend, **Laravel (PHP)** REST API, and **MySQL / SQLite** persistence. The storefront and cart update on one page via `fetch` without full page reloads.
+**Next.js (TypeScript)** frontend, **Laravel (PHP)** REST API, and **MySQL** persistence (SQLite remains optional via `.env`). The storefront and cart update on one page via `fetch` without full page reloads.
 
 ## How to run locally
 
@@ -10,7 +10,7 @@
 |-----------|--------|
 | PHP | 8.2+ with [Composer](https://getcomposer.org/) |
 | Node.js | 20+ with npm |
-| Database | **SQLite** by default (no server); **MySQL** is optional (e.g. for submission) |
+| Database | **MySQL** (create empty DB first); **SQLite** optional if you uncomment it in `backend/.env` |
 
 ### Suggested workflow (two terminals)
 
@@ -28,10 +28,9 @@ cp .env.example .env
 php artisan key:generate
 ```
 
-Quick start with SQLite (default `.env` points at `database/database.sqlite`):
+Create an empty MySQL database (name must match `DB_DATABASE` in `.env`, default `studio_supply`), set `DB_USERNAME` / `DB_PASSWORD` in `backend/.env`, then:
 
 ```bash
-touch database/database.sqlite
 php artisan migrate:fresh --seed
 php artisan serve
 # API default: http://127.0.0.1:8000
@@ -53,13 +52,29 @@ npm run dev
 - Home: product grid and cart sidebar; adding items works; **Checkout** as a guest prompts you to log in.
 - After **Register** / **Log in**: use **Account** for profile and default shipping; **Checkout** requires a full shipping address before placing the order.
 
+### Laravel admin (Blade back office)
+
+Session-based UI on the same app as the API (separate from the Next.js storefront):
+
+- **Assets:** If you have not run Vite in `backend/`, admin pages still load using the Tailwind CDN. For offline/local built CSS, from `backend/` run `npm install` once, then `npm run build` (creates `public/build/`).
+- **URL:** `http://127.0.0.1:8000/admin/login` (or `/admin` after login).
+- **Access:** only users with `is_admin = true` (see migration `add_is_admin_to_users_table`).
+- **Demo account** (created by `AdminUserSeeder` when you run `--seed`): **email** `admin@example.com`, **password** `password` — change in production.
+- **Features:** dashboard counts; **Users** (list, edit, admin flag, optional password reset, delete with safeguards); **Products** (full CRUD; delete blocked if the product appears on non-cart orders); **Orders** (list + detail with line items and shipping snapshot).
+
+The SPA uses **Sanctum API tokens**; the admin uses the **`web` guard** and cookies. The same database user can use both: after you log in to the shop as an admin, the app calls **`POST /api/admin/web-session`** (with `credentials: "include"`) to create a matching session so **Admin panel** opens logged in.
+
+If cookie sync fails (wrong CORS origin), you can still sign in at `/admin/login` with the same email and password.
+
 ### Troubleshooting
 
 | Issue | What to check |
 |-------|----------------|
 | Frontend cannot reach the API | Terminal A is running `php artisan serve`, and `frontend/.env.local` has `NEXT_PUBLIC_API_URL` matching the API (e.g. `http://127.0.0.1:8000`). |
 | Missing tables | From `backend/`, run `php artisan migrate` or `php artisan migrate:fresh --seed` (the latter wipes the DB). |
-| Switching to MySQL | Set `DB_*` in `backend/.env`, create the database, then `php artisan migrate:fresh --seed`. |
+| MySQL connection refused / access denied | MySQL is running, database exists, and `DB_HOST`, `DB_DATABASE`, `DB_USERNAME`, `DB_PASSWORD` in `backend/.env` are correct. |
+| Using SQLite instead | In `backend/.env`, set `DB_CONNECTION=sqlite` and `DB_DATABASE` to your `.sqlite` file path (see `.env.example` comments). |
+| Admin panel asks for login after SPA login | The shop uses API tokens; admin uses cookies. They share the same `users` rows, but the SPA calls `POST /api/admin/web-session` to create a `web` session. Ensure `backend/.env` has `CORS_ALLOWED_ORIGINS` listing the **exact** origin you use for Next.js (e.g. `http://localhost:3000`). Avoid mixing `localhost` vs `127.0.0.1` for the shop and API unless both are listed. |
 
 ---
 
@@ -74,7 +89,7 @@ flowchart LR
   end
   subgraph server [Local dev]
     API[Laravel REST /api]
-    DB[(SQLite or MySQL)]
+    DB[(MySQL)]
   end
   Next -->|fetch JSON + headers| API
   API --> DB
@@ -87,16 +102,18 @@ flowchart LR
 ### Repository layout (main areas)
 
 ```
-Assignment 1/
+project-root/
 ├── frontend/                 # Next.js (TypeScript)
 │   ├── app/                  # Routes: /, /products/[id], /login, /register, /account, /checkout
 │   ├── components/           # e.g. ShopHeader, CartPanel
 │   ├── contexts/             # auth-context (token / user)
 │   ├── hooks/                # useCart — keeps cart in sync with the API
 │   └── lib/                  # api.ts, authApi.ts, profileApi.ts, types, money
-├── backend/                  # Laravel API
+├── backend/                  # Laravel API + Blade admin under /admin
 │   ├── routes/api.php        # All /api routes and middleware groups
+│   ├── routes/web.php       
 │   ├── app/Http/Controllers/Api/
+│   ├── app/Http/Controllers/Admin/
 │   │   # Auth, Profile, Product, Cart*, Checkout
 │   ├── app/Models/           # User, Product, Order, OrderItem
 │   └── database/migrations/  # users, products, orders, order_items, tokens, …
@@ -129,7 +146,7 @@ The Next.js app stores the **API token** in `localStorage` and sends it on cart 
 
 **Checkout** requires a logged-in user (`POST /api/checkout` is behind `auth:sanctum`). The checkout form collects **shipping address** (`shipping_*` JSON fields); values can be saved to the user profile when `save_to_profile` is true. **Profile** (`GET` / `PATCH /api/profile`) stores optional `phone` and default shipping fields on `users` for pre-filling checkout.
 
-**UI:** `/login`, `/register`, `/account` (personal + default shipping), header shows **Account** and **Log out** when authenticated. Cart sidebar uses **Log in to checkout** for guests (redirects via `?redirect=/checkout` after sign-in).
+**UI:** `/login`, `/register`, `/account` (personal + default shipping + password), header shows the **user menu** (account, admin link when `is_admin`, log out) when authenticated. Cart sidebar uses **Log in to checkout** for guests (redirects via `?redirect=/checkout` after sign-in).
 
 After cloning, follow **How to run locally** above. Run `composer install` (includes **`laravel/sanctum`**) and migrations before using auth or checkout.
 
@@ -143,7 +160,7 @@ Similar to a typical marketplace split (e.g. separate product catalogue and tran
 | **`orders`** | Draft carts (`status = cart`) may be guest (`user_id` null) or owned by **`users.id`** after login / attach. **Checkout** sets `pending_payment`, `payment_method`, `placed_at`. |
 | **`order_items`** | Lines on an order: `product_id`, `quantity`, and **`unit_price`** (snapshot when the line is first added so line totals stay consistent if catalogue prices change). |
 
-The REST URLs still say `/api/cart/...` for the assignment SPA, but persistence is **orders + order_items**, not a separate “cart” table.
+The REST paths are `/api/cart/...`, but persistence is **orders + order_items**, not a separate “cart” table.
 
 ## Features mapped to CRUD
 
@@ -159,33 +176,23 @@ Guest carts are identified by an `X-Cart-Token` header (UUID). The SPA stores th
 
 **Routes:** `/` — catalogue + cart sidebar; `/products/[id]` — product detail; `/checkout` — English checkout (ATM / PayID / BPAY placeholders; redirects to login if not authenticated); confirmation screen after **Place order**.
 
-### MySQL instead of SQLite
+### SQLite instead of MySQL (optional)
 
-The quick start uses SQLite. For MySQL, edit `backend/.env`:
-
-```env
-DB_CONNECTION=mysql
-DB_HOST=127.0.0.1
-DB_PORT=3306
-DB_DATABASE=assignment1_cart
-DB_USERNAME=root
-DB_PASSWORD=your_password
-```
-
-Create the empty database, then from `backend/`:
+If you prefer a file DB, edit `backend/.env` and follow the commented block in `.env.example` (`DB_CONNECTION=sqlite` + `DB_DATABASE` path). Create the file if needed:
 
 ```bash
+touch database/database.sqlite
+# Set DB_DATABASE in .env to database/database.sqlite or an absolute path
 php artisan migrate:fresh --seed
-php artisan serve
 ```
 
-No frontend changes are needed unless the API base URL is no longer `http://127.0.0.1:8000`.
+PHPUnit still uses an in-memory SQLite database via `phpunit.xml`; that is unchanged.
 
-## Submission: database export
+## Database export (backup)
 
-After seeding, include one of the following in your submission package:
+To snapshot the schema and data for archival or moving environments:
 
-- **MySQL**: `mysqldump -u USER -p assignment1_cart > database_export.sql`
+- **MySQL**: `mysqldump -u USER -p studio_supply > database_export.sql`
 - **SQLite**: `sqlite3 backend/database/database.sqlite .dump > database_export.sql`
 
 `database/products_seed.json` lists the seeded products for reference or manual import.
@@ -202,16 +209,14 @@ After seeding, include one of the following in your submission package:
 | POST | `/api/login` | Issue token |
 | POST | `/api/logout` | Bearer required |
 | GET | `/api/user` | Bearer required |
-| GET | `/api/profile` | Bearer — `phone`, `shipping_*` defaults |
-| PATCH | `/api/profile` | Bearer — optional `phone`, `shipping_*` |
+| GET | `/api/profile` | Bearer — `avatar_url`, `phone`, `shipping_*` defaults |
+| PATCH | `/api/profile` | Bearer — optional `avatar_url`, `phone`, `shipping_*` |
+| POST | `/api/admin/web-session` | Bearer; **`is_admin` only** — creates `web` session cookie for `/admin` |
+| DELETE | `/api/admin/web-session` | Bearer — clears that `web` session (SPA logout) |
 | POST | `/api/cart/attach` | Bearer + `X-Cart-Token` |
 | POST | `/api/cart/items` | JSON `{ "product_id", "quantity" }` + `X-Cart-Token` |
 | PATCH | `/api/cart/items/{id}` | JSON `{ "quantity" }` |
 | DELETE | `/api/cart/items/{id}` | Remove line |
 | POST | `/api/checkout` | Bearer + `X-Cart-Token`. Body: `payment_method`, required `shipping_recipient_name`, `shipping_phone`, `shipping_line1`, `shipping_city`, `shipping_state`, `shipping_postcode`, `shipping_country`; optional `shipping_line2`, `save_to_profile` (bool) |
 
-CORS is permissive in `backend/config/cors.php` for local development; lock it down to your production origin before deploying.
-
-## Academic integrity
-
-This repository is a coursework scaffold. Cite any third-party code or assets as required by your subject outline, and test all features before you submit.
+CORS in `backend/config/cors.php` uses `supports_credentials` and `CORS_ALLOWED_ORIGINS` so the SPA can receive the admin session cookie; add your production storefront origin before deploying.

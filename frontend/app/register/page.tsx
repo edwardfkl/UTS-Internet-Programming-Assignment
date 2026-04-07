@@ -5,6 +5,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useEffect, useState } from "react";
 import { ShopHeader } from "@/components/ShopHeader";
 import { useAuth } from "@/contexts/auth-context";
+import { useLocale } from "@/contexts/locale-context";
 
 function safeRedirect(path: string | null): string {
   if (!path || !path.startsWith("/")) return "/";
@@ -16,6 +17,7 @@ function RegisterContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const redirectTo = safeRedirect(searchParams.get("redirect"));
+  const { t } = useLocale();
   const { register, user, ready } = useAuth();
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
@@ -36,7 +38,7 @@ function RegisterContent() {
       await register(name, email, password, passwordConfirmation);
       router.replace(redirectTo);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Registration failed");
+      setError(err instanceof Error ? err.message : t("common.registrationFailed"));
     } finally {
       setBusy(false);
     }
@@ -46,7 +48,7 @@ function RegisterContent() {
     return (
       <div className="min-h-full">
         <ShopHeader />
-        <p className="p-8 text-center text-sm text-stone-500">Redirecting…</p>
+        <p className="p-8 text-center text-sm text-stone-500">{t("common.redirecting")}</p>
       </div>
     );
   }
@@ -58,15 +60,14 @@ function RegisterContent() {
     <div className="min-h-full">
       <ShopHeader />
       <main className="mx-auto max-w-md px-4 py-12 sm:px-6">
-        <h1 className="font-display text-2xl font-semibold text-stone-900">Create account</h1>
+        <h1 className="font-display text-2xl font-semibold text-stone-900">{t("register.title")}</h1>
         <p className="mt-2 text-sm text-stone-600">
-          Password must be at least 8 characters. This is a coursework API — use a unique
-          test password.
+          {t("register.subtitle")}
         </p>
         <form onSubmit={(e) => void onSubmit(e)} className="mt-8 space-y-4">
           <div>
             <label htmlFor="name" className="block text-sm font-medium text-stone-700">
-              Name
+              {t("common.name")}
             </label>
             <input
               id="name"
@@ -80,7 +81,7 @@ function RegisterContent() {
           </div>
           <div>
             <label htmlFor="email" className="block text-sm font-medium text-stone-700">
-              Email
+              {t("common.email")}
             </label>
             <input
               id="email"
@@ -94,7 +95,7 @@ function RegisterContent() {
           </div>
           <div>
             <label htmlFor="password" className="block text-sm font-medium text-stone-700">
-              Password
+              {t("common.password")}
             </label>
             <input
               id="password"
@@ -111,7 +112,7 @@ function RegisterContent() {
               htmlFor="password_confirmation"
               className="block text-sm font-medium text-stone-700"
             >
-              Confirm password
+              {t("common.confirmPassword")}
             </label>
             <input
               id="password_confirmation"
@@ -133,13 +134,13 @@ function RegisterContent() {
             disabled={busy}
             className="w-full rounded-lg bg-amber-800 py-2.5 text-sm font-medium text-white hover:bg-amber-900 disabled:opacity-50"
           >
-            {busy ? "Creating account…" : "Register"}
+            {busy ? t("register.creating") : t("register.create")}
           </button>
         </form>
         <p className="mt-6 text-center text-sm text-stone-600">
-          Already have an account?{" "}
+          {t("register.hasAccount")}{" "}
           <Link href={loginHref} className="font-medium text-amber-900 hover:underline">
-            Log in
+            {t("register.logIn")}
           </Link>
         </p>
       </main>
@@ -147,16 +148,19 @@ function RegisterContent() {
   );
 }
 
+function RegisterSuspenseFallback() {
+  const { t } = useLocale();
+  return (
+    <div className="min-h-full">
+      <ShopHeader />
+      <p className="p-8 text-center text-sm text-stone-500">{t("common.loading")}</p>
+    </div>
+  );
+}
+
 export default function RegisterPage() {
   return (
-    <Suspense
-      fallback={
-        <div className="min-h-full">
-          <ShopHeader />
-          <p className="p-8 text-center text-sm text-stone-500">Loading…</p>
-        </div>
-      }
-    >
+    <Suspense fallback={<RegisterSuspenseFallback />}>
       <RegisterContent />
     </Suspense>
   );

@@ -14,7 +14,7 @@ const fraunces = Fraunces({
 });
 
 export const metadata: Metadata = {
-  title: "Shop demo | Assignment 1",
+  title: "Edward's Store",
   description: "E‑commerce shopping cart — Next.js + Laravel API",
 };
 

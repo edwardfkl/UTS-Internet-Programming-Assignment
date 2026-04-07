@@ -6,12 +6,14 @@ import { useParams } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
 import { CartPanel } from "@/components/CartPanel";
 import { ShopHeader } from "@/components/ShopHeader";
+import { useLocale } from "@/contexts/locale-context";
 import { useCart } from "@/hooks/useCart";
 import { fetchProduct } from "@/lib/api";
 import { money, parsePrice } from "@/lib/money";
 import type { Product } from "@/lib/types";
 
 export default function ProductPage() {
+  const { t, tf } = useLocale();
   const params = useParams();
   const rawId = params.id;
   const id = typeof rawId === "string" ? Number.parseInt(rawId, 10) : NaN;
@@ -49,12 +51,14 @@ export default function ProductPage() {
       if (e instanceof Error && e.message === "Product not found") {
         setNotFound(true);
       } else {
-        setPageError(e instanceof Error ? e.message : "Failed to load product");
+        setPageError(
+          e instanceof Error ? e.message : t("common.failedLoadProduct"),
+        );
       }
     } finally {
       setPageLoading(false);
     }
-  }, []);
+  }, [t]);
 
   useEffect(() => {
     if (!Number.isFinite(id) || id < 1) {
@@ -76,7 +80,7 @@ export default function ProductPage() {
         <div>
           <nav className="mb-6 text-sm text-stone-600">
             <Link href="/" className="font-medium text-amber-900 hover:underline">
-              Catalog
+              {t("nav.catalog")}
             </Link>
             <span className="mx-2 text-stone-400" aria-hidden>
               /
@@ -86,7 +90,7 @@ export default function ProductPage() {
             ) : pageLoading ? (
               <span>…</span>
             ) : (
-              <span>Product</span>
+              <span>{t("product.breadcrumbProduct")}</span>
             )}
           </nav>
 
@@ -107,22 +111,22 @@ export default function ProductPage() {
                 href="/"
                 className="mt-4 inline-block text-sm font-medium text-amber-900 hover:underline"
               >
-                Back to catalogue
+                {t("product.backToCatalogue")}
               </Link>
             </div>
           ) : notFound || invalidId ? (
             <div className="rounded-2xl border border-stone-200 bg-white p-8 text-center shadow-sm">
               <h1 className="font-display text-xl font-semibold text-stone-900">
-                Product not found
+                {t("common.productNotFound")}
               </h1>
               <p className="mt-2 text-sm text-stone-600">
-                This product may have been removed or the link is invalid.
+                {t("product.notFoundHint")}
               </p>
               <Link
                 href="/"
                 className="mt-6 inline-block rounded-lg bg-amber-800 px-4 py-2 text-sm font-medium text-white hover:bg-amber-900"
               >
-                Back to catalogue
+                {t("product.backToCatalogue")}
               </Link>
             </div>
           ) : product ? (
@@ -139,7 +143,7 @@ export default function ProductPage() {
                   />
                 ) : (
                   <div className="flex h-full items-center justify-center text-stone-400">
-                    No image
+                    {t("common.noImage")}
                   </div>
                 )}
               </div>
@@ -151,7 +155,7 @@ export default function ProductPage() {
                   {money.format(parsePrice(product))}
                 </p>
                 <p className="mt-2 text-sm text-stone-600">
-                  {product.stock} in stock
+                  {tf("common.inStock", { count: product.stock })}
                 </p>
                 {product.description ? (
                   <p className="mt-6 text-base leading-relaxed text-stone-700">
@@ -160,7 +164,7 @@ export default function ProductPage() {
                 ) : null}
                 <div className="mt-8 flex flex-wrap items-center gap-3">
                   <label className="sr-only" htmlFor="detail-qty">
-                    Quantity
+                    {t("product.detailQtySr")}
                   </label>
                   <input
                     id="detail-qty"
@@ -180,7 +184,7 @@ export default function ProductPage() {
                     onClick={() => void handleAdd(product.id, qty)}
                     className="rounded-lg bg-amber-800 px-5 py-2.5 text-sm font-medium text-white shadow-sm transition hover:bg-amber-900 disabled:cursor-not-allowed disabled:opacity-50"
                   >
-                    {busyId === product.id ? "Adding…" : "Add to cart"}
+                    {busyId === product.id ? t("home.adding") : t("home.addToCart")}
                   </button>
                 </div>
               </div>
@@ -197,7 +201,7 @@ export default function ProductPage() {
           cartToken={cartToken}
           cartStatus={cartStatus}
           onStartNewCart={() => void startNewCart()}
-          emptyHint="Your cart is empty. Add this product or browse the catalogue."
+          emptyHintKey="product"
           onQtyChange={(line, q) => void handleQtyChange(line, q)}
           onRemove={(lineId) => void handleRemove(lineId)}
         />

@@ -2,12 +2,15 @@ export type AuthUser = {
   id: number;
   name: string;
   email: string;
+  avatar_url: string | null;
+  is_admin: boolean;
 };
 
 export type UserProfile = {
   id: number;
   name: string;
   email: string;
+  avatar_url: string | null;
   phone: string | null;
   shipping_recipient_name: string | null;
   shipping_line1: string | null;

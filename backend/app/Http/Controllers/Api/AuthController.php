@@ -28,11 +28,7 @@ class AuthController extends Controller
         $token = $user->createToken('spa')->plainTextToken;
 
         return response()->json([
-            'user' => [
-                'id' => $user->id,
-                'name' => $user->name,
-                'email' => $user->email,
-            ],
+            'user' => $this->userPayload($user),
             'token' => $token,
         ], 201);
     }
@@ -55,11 +51,7 @@ class AuthController extends Controller
         $token = $user->createToken('spa')->plainTextToken;
 
         return response()->json([
-            'user' => [
-                'id' => $user->id,
-                'name' => $user->name,
-                'email' => $user->email,
-            ],
+            'user' => $this->userPayload($user),
             'token' => $token,
         ]);
     }
@@ -75,10 +67,20 @@ class AuthController extends Controller
     {
         $u = $request->user();
 
-        return response()->json([
-            'id' => $u->id,
-            'name' => $u->name,
-            'email' => $u->email,
-        ]);
+        return response()->json($this->userPayload($u));
+    }
+
+    /**
+     * @return array{id: int, name: string, email: string, avatar_url: ?string, is_admin: bool}
+     */
+    private function userPayload(User $user): array
+    {
+        return [
+            'id' => $user->id,
+            'name' => $user->name,
+            'email' => $user->email,
+            'avatar_url' => $user->avatar_url,
+            'is_admin' => (bool) $user->is_admin,
+        ];
     }
 }

@@ -5,19 +5,29 @@ import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { ShopHeader } from "@/components/ShopHeader";
 import { useAuth } from "@/contexts/auth-context";
+import { useLocale } from "@/contexts/locale-context";
+import { changePassword } from "@/lib/passwordApi";
 import { fetchProfile, updateProfile } from "@/lib/profileApi";
 import type { UserProfile } from "@/lib/types";
 
 export default function AccountPage() {
   const router = useRouter();
-  const { user, ready, logout } = useAuth();
+  const { t } = useLocale();
+  const { user, ready, logout, refreshUser } = useAuth();
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [ok, setOk] = useState(false);
+  const [currentPassword, setCurrentPassword] = useState("");
+  const [newPassword, setNewPassword] = useState("");
+  const [newPasswordConfirm, setNewPasswordConfirm] = useState("");
+  const [pwdSaving, setPwdSaving] = useState(false);
+  const [pwdError, setPwdError] = useState<string | null>(null);
+  const [pwdOk, setPwdOk] = useState(false);
 
   const [name, setName] = useState("");
+  const [avatarUrl, setAvatarUrl] = useState("");
   const [phone, setPhone] = useState("");
   const [shippingRecipient, setShippingRecipient] = useState("");
   const [line1, setLine1] = useState("");
@@ -42,6 +52,7 @@ export default function AccountPage() {
         if (cancelled) return;
         setProfile(p);
         setName(p.name);
+        setAvatarUrl(p.avatar_url ?? "");
         setPhone(p.phone ?? "");
         setShippingRecipient(p.shipping_recipient_name ?? p.name);
         setLine1(p.shipping_line1 ?? "");
@@ -51,7 +62,7 @@ export default function AccountPage() {
         setPostcode(p.shipping_postcode ?? "");
         setCountry(p.shipping_country ?? "Australia");
       } catch (e) {
-        if (!cancelled) setError(e instanceof Error ? e.message : "Failed to load");
+        if (!cancelled) setError(e instanceof Error ? e.message : t("common.failedToLoad"));
       } finally {
         if (!cancelled) setLoading(false);
       }
@@ -59,7 +70,25 @@ export default function AccountPage() {
     return () => {
       cancelled = true;
     };
-  }, [ready, user]);
+  }, [ready, user, t]);
+
+  useEffect(() => {
+    if (typeof window === "undefined" || loading) return;
+
+    function scrollToPassword(): void {
+      if (window.location.hash !== "#change-password") return;
+      requestAnimationFrame(() => {
+        document.getElementById("change-password")?.scrollIntoView({
+          behavior: "smooth",
+          block: "start",
+        });
+      });
+    }
+
+    scrollToPassword();
+    window.addEventListener("hashchange", scrollToPassword);
+    return () => window.removeEventListener("hashchange", scrollToPassword);
+  }, [loading]);
 
   async function onSubmit(e: React.FormEvent): Promise<void> {
     e.preventDefault();
@@ -69,6 +98,7 @@ export default function AccountPage() {
     try {
       const p = await updateProfile({
         name,
+        avatar_url: avatarUrl.trim() || null,
         phone: phone || null,
         shipping_recipient_name: shippingRecipient || null,
         shipping_line1: line1 || null,
@@ -79,11 +109,37 @@ export default function AccountPage() {
         shipping_country: country || null,
       });
       setProfile(p);
+      setAvatarUrl(p.avatar_url ?? "");
       setOk(true);
+      await refreshUser();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Save failed");
+      setError(err instanceof Error ? err.message : t("common.saveFailed"));
     } finally {
       setSaving(false);
+    }
+  }
+
+  async function onPasswordSubmit(e: React.FormEvent): Promise<void> {
+    e.preventDefault();
+    setPwdError(null);
+    setPwdOk(false);
+    setPwdSaving(true);
+    try {
+      await changePassword({
+        currentPassword,
+        password: newPassword,
+        passwordConfirmation: newPasswordConfirm,
+      });
+      setCurrentPassword("");
+      setNewPassword("");
+      setNewPasswordConfirm("");
+      setPwdOk(true);
+    } catch (err) {
+      setPwdError(
+        err instanceof Error ? err.message : t("common.couldNotChangePassword"),
+      );
+    } finally {
+      setPwdSaving(false);
     }
   }
 
@@ -91,35 +147,113 @@ export default function AccountPage() {
     return (
       <div className="min-h-full">
         <ShopHeader />
-        <p className="p-8 text-center text-sm text-stone-500">Loading…</p>
+        <p className="p-8 text-center text-sm text-stone-500">{t("common.loading")}</p>
       </div>
     );
   }
 
   return (
     <div className="min-h-full">
-      <ShopHeader tagline="Your profile" />
+      <ShopHeader tagline={t("common.taglineProfile")} />
       <main className="mx-auto max-w-2xl px-4 py-8 sm:px-6">
         <div className="flex flex-wrap items-center justify-between gap-4">
-          <h1 className="font-display text-3xl font-semibold text-stone-900">Account</h1>
+          <h1 className="font-display text-3xl font-semibold text-stone-900">
+            {t("account.title")}
+          </h1>
           <p className="text-sm text-stone-600">
-            Signed in as <span className="font-medium text-stone-800">{user.email}</span>
+            {t("account.signedInAs")}{" "}
+            <span className="font-medium text-stone-800">{user.email}</span>
           </p>
         </div>
-        <p className="mt-2 text-sm text-stone-600">
-          Update your contact details and default shipping address. Checkout can pre-fill from here.
-        </p>
+        <p className="mt-2 text-sm text-stone-600">{t("account.intro")}</p>
 
         {loading ? (
-          <p className="mt-8 text-stone-500">Loading profile…</p>
+          <p className="mt-8 text-stone-500">{t("common.loadingProfile")}</p>
         ) : (
-          <form onSubmit={(e) => void onSubmit(e)} className="mt-8 space-y-8">
+          <div className="mt-8 space-y-8">
+            <form
+              id="change-password"
+              onSubmit={(e) => void onPasswordSubmit(e)}
+              className="scroll-mt-28 rounded-2xl border border-stone-200 bg-white p-5 shadow-sm"
+            >
+              <h2 className="font-display text-lg font-semibold text-stone-900">
+                {t("account.changePassword")}
+              </h2>
+              <p className="mt-1 text-sm text-stone-600">
+                {t("account.changePasswordHint")}
+              </p>
+              <div className="mt-4 grid max-w-md gap-4">
+                <div>
+                  <label htmlFor="current-pw" className="block text-sm font-medium text-stone-700">
+                    {t("account.currentPassword")}
+                  </label>
+                  <input
+                    id="current-pw"
+                    type="password"
+                    autoComplete="current-password"
+                    value={currentPassword}
+                    onChange={(e) => setCurrentPassword(e.target.value)}
+                    required
+                    className="mt-1 w-full rounded-lg border border-stone-200 px-3 py-2"
+                  />
+                </div>
+                <div>
+                  <label htmlFor="new-pw" className="block text-sm font-medium text-stone-700">
+                    {t("account.newPassword")}
+                  </label>
+                  <input
+                    id="new-pw"
+                    type="password"
+                    autoComplete="new-password"
+                    value={newPassword}
+                    onChange={(e) => setNewPassword(e.target.value)}
+                    required
+                    minLength={8}
+                    className="mt-1 w-full rounded-lg border border-stone-200 px-3 py-2"
+                  />
+                </div>
+                <div>
+                  <label htmlFor="new-pw2" className="block text-sm font-medium text-stone-700">
+                    {t("account.confirmNewPassword")}
+                  </label>
+                  <input
+                    id="new-pw2"
+                    type="password"
+                    autoComplete="new-password"
+                    value={newPasswordConfirm}
+                    onChange={(e) => setNewPasswordConfirm(e.target.value)}
+                    required
+                    minLength={8}
+                    className="mt-1 w-full rounded-lg border border-stone-200 px-3 py-2"
+                  />
+                </div>
+              </div>
+              {pwdError ? (
+                <p className="mt-3 text-sm text-red-800" role="alert">
+                  {pwdError}
+                </p>
+              ) : null}
+              {pwdOk ? (
+                <p className="mt-3 text-sm text-green-800">{t("account.passwordUpdated")}</p>
+              ) : null}
+              <button
+                type="submit"
+                disabled={pwdSaving}
+                className="mt-4 rounded-lg border border-stone-300 bg-stone-50 px-5 py-2.5 text-sm font-medium text-stone-900 hover:bg-stone-100 disabled:opacity-50"
+              >
+                {pwdSaving ? t("account.updatingPassword") : t("account.updatePassword")}
+              </button>
+            </form>
+
+            <form onSubmit={(e) => void onSubmit(e)} className="space-y-8">
             <section className="rounded-2xl border border-stone-200 bg-white p-5 shadow-sm">
-              <h2 className="font-display text-lg font-semibold text-stone-900">Personal</h2>
+              <h2 className="font-display text-lg font-semibold text-stone-900">
+                {t("account.personal")}
+              </h2>
               <div className="mt-4 grid gap-4 sm:grid-cols-2">
                 <div className="sm:col-span-2">
                   <label htmlFor="name" className="block text-sm font-medium text-stone-700">
-                    Full name
+                    {t("account.fullName")}
                   </label>
                   <input
                     id="name"
@@ -129,9 +263,24 @@ export default function AccountPage() {
                     className="mt-1 w-full rounded-lg border border-stone-200 px-3 py-2"
                   />
                 </div>
+                <div className="sm:col-span-2">
+                  <label htmlFor="avatar-url" className="block text-sm font-medium text-stone-700">
+                    {t("account.profilePhotoUrl")}
+                  </label>
+                  <input
+                    id="avatar-url"
+                    type="url"
+                    inputMode="url"
+                    placeholder="https://example.com/photo.jpg"
+                    value={avatarUrl}
+                    onChange={(e) => setAvatarUrl(e.target.value)}
+                    className="mt-1 w-full rounded-lg border border-stone-200 px-3 py-2"
+                  />
+                  <p className="mt-1 text-xs text-stone-500">{t("account.avatarHint")}</p>
+                </div>
                 <div>
                   <label htmlFor="email-ro" className="block text-sm font-medium text-stone-700">
-                    Email
+                    {t("common.email")}
                   </label>
                   <input
                     id="email-ro"
@@ -142,7 +291,7 @@ export default function AccountPage() {
                 </div>
                 <div>
                   <label htmlFor="phone" className="block text-sm font-medium text-stone-700">
-                    Phone
+                    {t("common.phone")}
                   </label>
                   <input
                     id="phone"
@@ -157,12 +306,12 @@ export default function AccountPage() {
 
             <section className="rounded-2xl border border-stone-200 bg-white p-5 shadow-sm">
               <h2 className="font-display text-lg font-semibold text-stone-900">
-                Default shipping address
+                {t("account.shippingTitle")}
               </h2>
               <div className="mt-4 grid gap-4">
                 <div>
                   <label htmlFor="recipient" className="block text-sm font-medium text-stone-700">
-                    Recipient name
+                    {t("account.recipient")}
                   </label>
                   <input
                     id="recipient"
@@ -173,7 +322,7 @@ export default function AccountPage() {
                 </div>
                 <div>
                   <label htmlFor="line1" className="block text-sm font-medium text-stone-700">
-                    Address line 1
+                    {t("account.line1")}
                   </label>
                   <input
                     id="line1"
@@ -184,7 +333,7 @@ export default function AccountPage() {
                 </div>
                 <div>
                   <label htmlFor="line2" className="block text-sm font-medium text-stone-700">
-                    Address line 2 (optional)
+                    {t("account.line2")}
                   </label>
                   <input
                     id="line2"
@@ -196,7 +345,7 @@ export default function AccountPage() {
                 <div className="grid gap-4 sm:grid-cols-2">
                   <div>
                     <label htmlFor="city" className="block text-sm font-medium text-stone-700">
-                      City / suburb
+                      {t("account.city")}
                     </label>
                     <input
                       id="city"
@@ -207,7 +356,7 @@ export default function AccountPage() {
                   </div>
                   <div>
                     <label htmlFor="state" className="block text-sm font-medium text-stone-700">
-                      State / territory
+                      {t("account.state")}
                     </label>
                     <input
                       id="state"
@@ -218,7 +367,7 @@ export default function AccountPage() {
                   </div>
                   <div>
                     <label htmlFor="postcode" className="block text-sm font-medium text-stone-700">
-                      Postcode
+                      {t("account.postcode")}
                     </label>
                     <input
                       id="postcode"
@@ -229,7 +378,7 @@ export default function AccountPage() {
                   </div>
                   <div>
                     <label htmlFor="country" className="block text-sm font-medium text-stone-700">
-                      Country
+                      {t("account.country")}
                     </label>
                     <input
                       id="country"
@@ -248,7 +397,7 @@ export default function AccountPage() {
               </p>
             ) : null}
             {ok ? (
-              <p className="text-sm text-green-800">Profile saved.</p>
+              <p className="text-sm text-green-800">{t("account.profileSaved")}</p>
             ) : null}
 
             <div className="flex flex-wrap gap-3">
@@ -257,23 +406,24 @@ export default function AccountPage() {
                 disabled={saving}
                 className="rounded-lg bg-amber-800 px-5 py-2.5 text-sm font-medium text-white hover:bg-amber-900 disabled:opacity-50"
               >
-                {saving ? "Saving…" : "Save changes"}
+                {saving ? t("account.saving") : t("account.saveChanges")}
               </button>
               <Link
                 href="/"
                 className="rounded-lg border border-stone-300 px-5 py-2.5 text-sm font-medium text-stone-800 hover:bg-stone-50"
               >
-                Back to shop
+                {t("account.backToShop")}
               </Link>
               <button
                 type="button"
                 onClick={() => void logout()}
                 className="ml-auto text-sm font-medium text-red-800 hover:underline"
               >
-                Log out
+                {t("account.logOut")}
               </button>
             </div>
-          </form>
+            </form>
+          </div>
         )}
       </main>
     </div>

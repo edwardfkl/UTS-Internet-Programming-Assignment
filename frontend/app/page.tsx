@@ -5,12 +5,14 @@ import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
 import { CartPanel } from "@/components/CartPanel";
 import { ShopHeader } from "@/components/ShopHeader";
+import { useLocale } from "@/contexts/locale-context";
 import { useCart } from "@/hooks/useCart";
 import { fetchProducts } from "@/lib/api";
 import { money, parsePrice } from "@/lib/money";
 import type { Product } from "@/lib/types";
 
 export default function Home() {
+  const { t, tf } = useLocale();
   const [products, setProducts] = useState<Product[]>([]);
   const [catalogLoading, setCatalogLoading] = useState(true);
   const [catalogError, setCatalogError] = useState<string | null>(null);
@@ -39,11 +41,11 @@ export default function Home() {
       for (const p of plist) initialQty[p.id] = 1;
       setQtyByProduct(initialQty);
     } catch (e) {
-      setCatalogError(e instanceof Error ? e.message : "Failed to load");
+      setCatalogError(e instanceof Error ? e.message : t("common.failedToLoad"));
     } finally {
       setCatalogLoading(false);
     }
-  }, []);
+  }, [t]);
 
   useEffect(() => {
     void loadCatalog();
@@ -51,7 +53,7 @@ export default function Home() {
 
   return (
     <div className="min-h-full">
-      <ShopHeader tagline="Single-page shop · Next.js ↔ Laravel" />
+      <ShopHeader />
 
       {catalogError ? (
         <div className="mx-auto max-w-6xl px-4 py-4 sm:px-6">
@@ -64,7 +66,7 @@ export default function Home() {
       <main className="mx-auto grid max-w-6xl gap-8 px-4 py-8 lg:grid-cols-[1fr_380px] sm:px-6">
         <section aria-labelledby="products-heading">
           <h2 id="products-heading" className="sr-only">
-            Product catalogue
+            {t("home.catalogueSr")}
           </h2>
           {catalogLoading ? (
             <div className="grid gap-4 sm:grid-cols-2">
@@ -96,7 +98,7 @@ export default function Home() {
                       />
                     ) : (
                       <div className="flex h-full items-center justify-center text-stone-400">
-                        No image
+                        {t("common.noImage")}
                       </div>
                     )}
                   </Link>
@@ -120,11 +122,13 @@ export default function Home() {
                       <p className="text-lg font-semibold tabular-nums text-amber-900">
                         {money.format(parsePrice(p))}
                       </p>
-                      <p className="text-xs text-stone-500">{p.stock} in stock</p>
+                      <p className="text-xs text-stone-500">
+                        {tf("common.inStock", { count: p.stock })}
+                      </p>
                     </div>
                     <div className="flex items-center gap-2">
                       <label className="sr-only" htmlFor={`qty-${p.id}`}>
-                        Quantity for {p.name}
+                        {tf("home.qtyFor", { name: p.name })}
                       </label>
                       <input
                         id={`qty-${p.id}`}
@@ -149,7 +153,7 @@ export default function Home() {
                         }
                         className="flex-1 rounded-lg bg-amber-800 px-3 py-2 text-sm font-medium text-white shadow-sm transition hover:bg-amber-900 disabled:cursor-not-allowed disabled:opacity-50"
                       >
-                        {busyId === p.id ? "Adding…" : "Add to cart"}
+                        {busyId === p.id ? t("home.adding") : t("home.addToCart")}
                       </button>
                     </div>
                   </div>
@@ -168,7 +172,6 @@ export default function Home() {
           cartToken={cartToken}
           cartStatus={cartStatus}
           onStartNewCart={() => void startNewCart()}
-          emptyHint="Your cart is empty. Add products from the catalogue or open a product page."
           onQtyChange={(line, q) => void handleQtyChange(line, q)}
           onRemove={(id) => void handleRemove(id)}
         />

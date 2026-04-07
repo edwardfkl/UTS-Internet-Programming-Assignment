@@ -12,7 +12,7 @@ function bearerHeaders(): Record<string, string> {
   return t ? { Authorization: `Bearer ${t}` } : {};
 }
 
-const CART_STORAGE_KEY = "assignment1_cart_token";
+const CART_STORAGE_KEY = "studio_supply_cart_token";
 /** Use `/?cart=<order-token>` to restore a cart bookmarked on another browser. */
 export const CART_URL_QUERY = "cart";
 
@@ -34,6 +34,11 @@ export function applyCartFromUrlIfPresent(): void {
 
 export function apiBase(): string {
   return process.env.NEXT_PUBLIC_API_URL ?? "http://127.0.0.1:8000";
+}
+
+/** Laravel Blade admin (session auth); opens same API origin as `/admin`. */
+export function adminPanelUrl(): string {
+  return `${apiBase().replace(/\/$/, "")}/admin`;
 }
 
 export function getStoredCartToken(): string | null {

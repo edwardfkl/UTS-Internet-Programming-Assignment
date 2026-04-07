@@ -1,54 +1,54 @@
 import type { PaymentMethod } from "./types";
 
-export const PAYMENT_OPTIONS: {
-  id: PaymentMethod;
-  label: string;
-  description: string;
-}[] = [
-  {
-    id: "atm_transfer",
-    label: "Bank transfer (ATM / internet banking)",
-    description:
-      "Pay from any Australian bank using BSB and account number. May appear as OSKO or direct credit.",
-  },
-  {
-    id: "pay_id",
-    label: "PayID",
-    description:
-      "Use your banking app to send to our PayID (email type). Fast transfer in many cases.",
-  },
-  {
-    id: "bpay",
-    label: "BPAY",
-    description:
-      "Pay from online banking using our biller code and your reference (BPAY View compatible where available).",
-  },
+export const PAYMENT_OPTIONS: { id: PaymentMethod }[] = [
+  { id: "atm_transfer" },
+  { id: "pay_id" },
+  { id: "bpay" },
 ];
 
-/** Demo-only credentials — coursework placeholder, not real accounts. */
+/** Demo-only credentials — placeholders, not real accounts. */
 export function paymentDetailBlocks(
   method: PaymentMethod,
   orderReference: string,
   totalFormatted: string,
+  t?: (key: string) => string,
 ): { title: string; lines: { label: string; value: string }[] }[] {
-  const refNote = `Quote reference: ${orderReference}`;
-  const amountLine = { label: "Amount due", value: totalFormatted };
+  const tr = (key: string, fallback: string) => (t ? t(key) : fallback);
+  const refNote = tr("payDetail.quoteRef", "Quote reference: {reference}").replace(
+    "{reference}",
+    orderReference,
+  );
+  const amountLine = {
+    label: tr("payDetail.amountDue", "Amount due"),
+    value: totalFormatted,
+  };
 
   switch (method) {
     case "atm_transfer":
       return [
         {
-          title: "Bank transfer details (demo)",
+          title: tr("payDetail.atmTitle", "Bank transfer details (demo)"),
           lines: [
             amountLine,
-            { label: "Account name", value: "Studio Supply Co. Demo Pty Ltd" },
-            { label: "BSB", value: "062-000" },
-            { label: "Account number", value: "1234 5678" },
-            { label: "Reference / narration", value: orderReference },
             {
-              label: "Note",
-              value:
-                "Assignment demo only. Do not send real money to these details.",
+              label: tr("payDetail.accountName", "Account name"),
+              value: tr("payDetail.demoCompany", "Edward's Store Demo Pty Ltd"),
+            },
+            { label: tr("payDetail.bsb", "BSB"), value: "062-000" },
+            {
+              label: tr("payDetail.accountNumber", "Account number"),
+              value: "1234 5678",
+            },
+            {
+              label: tr("payDetail.referenceNarration", "Reference / narration"),
+              value: orderReference,
+            },
+            {
+              label: tr("payDetail.note", "Note"),
+              value: tr(
+                "payDetail.atmNote",
+                "Demo only. Do not send real money to these details.",
+              ),
             },
           ],
         },
@@ -56,16 +56,24 @@ export function paymentDetailBlocks(
     case "pay_id":
       return [
         {
-          title: "PayID (demo)",
+          title: tr("payDetail.payidTitle", "PayID (demo)"),
           lines: [
             amountLine,
-            { label: "PayID type", value: "Email" },
-            { label: "PayID", value: "payid.demo@studio-supply.edu" },
-            { label: "Description", value: refNote },
+            { label: tr("payDetail.payidType", "PayID type"), value: tr("payDetail.typeEmail", "Email") },
             {
-              label: "Note",
-              value:
-                "Assignment demo only. This PayID is not registered for real payments.",
+              label: tr("payDetail.payid", "PayID"),
+              value: "payid.demo@edwards-store.demo",
+            },
+            {
+              label: tr("payDetail.description", "Description"),
+              value: refNote,
+            },
+            {
+              label: tr("payDetail.note", "Note"),
+              value: tr(
+                "payDetail.payidNote",
+                "Demo only. This PayID is not registered for real payments.",
+              ),
             },
           ],
         },
@@ -73,19 +81,22 @@ export function paymentDetailBlocks(
     case "bpay":
       return [
         {
-          title: "BPAY (demo)",
+          title: tr("payDetail.bpayTitle", "BPAY (demo)"),
           lines: [
             amountLine,
-            { label: "Biller code", value: "12345" },
+            { label: tr("payDetail.billerCode", "Biller code"), value: "12345" },
             {
-              label: "Customer reference",
-              value: orderReference.replace(/\D/g, "").slice(-10) || "0000000001",
-            },
-            { label: "Note", value: refNote },
-            {
-              label: "Disclaimer",
+              label: tr("payDetail.customerRef", "Customer reference"),
               value:
-                "Coursework placeholder. Use real BPAY details only from genuine invoices.",
+                orderReference.replace(/\D/g, "").slice(-10) || "0000000001",
+            },
+            { label: tr("payDetail.note", "Note"), value: refNote },
+            {
+              label: tr("payDetail.disclaimer", "Disclaimer"),
+              value: tr(
+                "payDetail.bpayDisclaimer",
+                "Placeholder only. Use real BPAY details only from genuine invoices.",
+              ),
             },
           ],
         },

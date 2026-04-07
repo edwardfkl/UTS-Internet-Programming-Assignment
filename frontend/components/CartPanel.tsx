@@ -4,6 +4,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { useState } from "react";
 import { useAuth } from "@/contexts/auth-context";
+import { useLocale } from "@/contexts/locale-context";
 import { CART_URL_QUERY } from "@/lib/api";
 import { money, parsePrice } from "@/lib/money";
 import type { CartLine } from "@/lib/types";
@@ -14,7 +15,7 @@ type CartPanelProps = {
   loading: boolean;
   error: string | null;
   busyId: number | null;
-  emptyHint: string;
+  emptyHintKey?: "default" | "product";
   cartToken: string | null;
   cartStatus: string;
   onStartNewCart: () => void;
@@ -28,19 +29,22 @@ export function CartPanel({
   loading,
   error,
   busyId,
-  emptyHint,
+  emptyHintKey = "default",
   cartToken,
   cartStatus,
   onStartNewCart,
   onQtyChange,
   onRemove,
 }: CartPanelProps) {
+  const { t } = useLocale();
   const { user, ready: authReady } = useAuth();
   const [copied, setCopied] = useState(false);
   const cartEditable = cartStatus === "cart";
   const needsLogin = authReady && !user;
   const checkoutHref = needsLogin ? "/login?redirect=%2Fcheckout" : "/checkout";
-  const checkoutLabel = needsLogin ? "Log in to checkout" : "Checkout";
+  const checkoutLabel = needsLogin ? t("cart.loginToCheckout") : t("cart.checkout");
+  const emptyHint =
+    emptyHintKey === "product" ? t("cart.emptyProduct") : t("cart.emptyDefault");
 
   async function copySaveLink(): Promise<void> {
     if (!cartToken || typeof window === "undefined") return;
@@ -65,7 +69,7 @@ export function CartPanel({
           id="cart-heading"
           className="font-display text-xl font-semibold text-stone-900"
         >
-          Cart
+          {t("cart.title")}
         </h2>
         {error ? (
           <p
@@ -77,22 +81,21 @@ export function CartPanel({
         ) : null}
         {!loading && !cartEditable && lines.length > 0 ? (
           <div className="mt-3 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-stone-800">
-            <p className="font-medium text-amber-950">Checkout complete</p>
+            <p className="font-medium text-amber-950">{t("cart.checkoutComplete")}</p>
             <p className="mt-1 text-stone-600">
-              This token is tied to an order awaiting payment. Start a new cart to add
-              more items.
+              {t("cart.checkoutCompleteHint")}
             </p>
             <button
               type="button"
               className="mt-2 text-xs font-semibold text-amber-900 underline"
               onClick={() => void onStartNewCart()}
             >
-              Start new cart
+              {t("cart.startNewCart")}
             </button>
           </div>
         ) : null}
         {loading ? (
-          <p className="mt-4 text-sm text-stone-500">Loading…</p>
+          <p className="mt-4 text-sm text-stone-500">{t("cart.loading")}</p>
         ) : lines.length === 0 ? (
           <p className="mt-4 text-sm text-stone-500">{emptyHint}</p>
         ) : (
@@ -127,7 +130,7 @@ export function CartPanel({
                     @ {money.format(parsePrice(line.product))}
                   </p>
                   <div className="mt-2 flex flex-wrap items-center gap-2">
-                    <span className="text-xs text-stone-500">Qty</span>
+                    <span className="text-xs text-stone-500">{t("cart.qty")}</span>
                     <div className="inline-flex items-center rounded-lg border border-stone-200 bg-stone-50">
                       <button
                         type="button"
@@ -138,7 +141,7 @@ export function CartPanel({
                           line.quantity <= 1
                         }
                         onClick={() => onQtyChange(line, line.quantity - 1)}
-                        aria-label="Decrease quantity"
+                        aria-label={t("cart.decreaseQty")}
                       >
                         −
                       </button>
@@ -154,7 +157,7 @@ export function CartPanel({
                           line.quantity >= line.product.stock
                         }
                         onClick={() => onQtyChange(line, line.quantity + 1)}
-                        aria-label="Increase quantity"
+                        aria-label={t("cart.increaseQty")}
                       >
                         +
                       </button>
@@ -165,7 +168,7 @@ export function CartPanel({
                       disabled={!cartEditable || busyId === line.id}
                       onClick={() => onRemove(line.id)}
                     >
-                      Remove
+                      {t("common.remove")}
                     </button>
                   </div>
                 </div>
@@ -178,7 +181,7 @@ export function CartPanel({
         )}
         {!loading && lines.length > 0 ? (
           <div className="mt-4 flex items-center justify-between border-t border-stone-200 pt-4">
-            <span className="text-sm font-medium text-stone-600">Total</span>
+            <span className="text-sm font-medium text-stone-600">{t("common.total")}</span>
             <span className="font-display text-xl font-semibold tabular-nums text-amber-950">
               {money.format(total)}
             </span>
@@ -194,28 +197,20 @@ export function CartPanel({
         ) : null}
         {!loading && cartToken && cartEditable ? (
           <div className="mt-4 rounded-xl border border-amber-100 bg-amber-50/80 p-3">
-            <p className="text-xs font-medium text-amber-950">Saved on server</p>
+            <p className="text-xs font-medium text-amber-950">{t("cart.savedOnServer")}</p>
             <p className="mt-1 text-xs text-stone-600">
-              Line items live in your database. This browser stores only the order
-              token. Copy a link to reopen the same cart elsewhere or after clearing
-              site data.
+              {t("cart.savedOnServerHint")}
             </p>
             <button
               type="button"
               onClick={() => void copySaveLink()}
               className="mt-2 rounded-lg border border-amber-800/30 bg-white px-3 py-1.5 text-xs font-medium text-amber-950 shadow-sm hover:bg-amber-50"
             >
-              {copied ? "Copied" : "Copy cart link"}
+              {copied ? t("cart.copied") : t("cart.copyCartLink")}
             </button>
           </div>
         ) : null}
       </div>
-      <p className="text-center text-xs text-stone-500">
-        Open a saved cart: &nbsp;
-        <code className="rounded bg-stone-100 px-1 py-0.5 text-[10px]">
-          ?{CART_URL_QUERY}=&lt;token&gt;
-        </code>
-      </p>
     </aside>
   );
 }

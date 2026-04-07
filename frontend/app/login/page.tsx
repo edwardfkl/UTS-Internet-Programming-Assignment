@@ -5,6 +5,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useEffect, useState } from "react";
 import { ShopHeader } from "@/components/ShopHeader";
 import { useAuth } from "@/contexts/auth-context";
+import { useLocale } from "@/contexts/locale-context";
 
 function safeRedirect(path: string | null): string {
   if (!path || !path.startsWith("/")) return "/";
@@ -16,6 +17,7 @@ function LoginContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const redirectTo = safeRedirect(searchParams.get("redirect"));
+  const { t } = useLocale();
   const { login, user, ready } = useAuth();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -34,7 +36,7 @@ function LoginContent() {
       await login(email, password);
       router.replace(redirectTo);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Login failed");
+      setError(err instanceof Error ? err.message : t("common.loginFailed"));
     } finally {
       setBusy(false);
     }
@@ -44,7 +46,7 @@ function LoginContent() {
     return (
       <div className="min-h-full">
         <ShopHeader />
-        <p className="p-8 text-center text-sm text-stone-500">Redirecting…</p>
+        <p className="p-8 text-center text-sm text-stone-500">{t("common.redirecting")}</p>
       </div>
     );
   }
@@ -53,14 +55,24 @@ function LoginContent() {
     <div className="min-h-full">
       <ShopHeader />
       <main className="mx-auto max-w-md px-4 py-12 sm:px-6">
-        <h1 className="font-display text-2xl font-semibold text-stone-900">Log in</h1>
+        <h1 className="font-display text-2xl font-semibold text-stone-900">{t("login.title")}</h1>
         <p className="mt-2 text-sm text-stone-600">
-          Use your account to link carts and orders (demo — no email verification).
+          {t("login.subtitle")}
         </p>
-        <form onSubmit={(e) => void onSubmit(e)} className="mt-8 space-y-4">
+        <form
+          onSubmit={(e) => void onSubmit(e)}
+          onKeyDown={(e: React.KeyboardEvent<HTMLFormElement>) => {
+            if (e.key !== "Enter" || busy) return;
+            if (e.nativeEvent.isComposing) return;
+            if (!(e.target instanceof HTMLInputElement)) return;
+            e.preventDefault();
+            e.currentTarget.requestSubmit();
+          }}
+          className="mt-8 space-y-4"
+        >
           <div>
             <label htmlFor="email" className="block text-sm font-medium text-stone-700">
-              Email
+              {t("common.email")}
             </label>
             <input
               id="email"
@@ -74,7 +86,7 @@ function LoginContent() {
           </div>
           <div>
             <label htmlFor="password" className="block text-sm font-medium text-stone-700">
-              Password
+              {t("common.password")}
             </label>
             <input
               id="password"
@@ -96,16 +108,16 @@ function LoginContent() {
             disabled={busy}
             className="w-full rounded-lg bg-amber-800 py-2.5 text-sm font-medium text-white hover:bg-amber-900 disabled:opacity-50"
           >
-            {busy ? "Signing in…" : "Sign in"}
+            {busy ? t("login.signingIn") : t("login.signIn")}
           </button>
         </form>
         <p className="mt-6 text-center text-sm text-stone-600">
-          No account?{" "}
+          {t("login.noAccount")}{" "}
           <Link
             href={redirectTo !== "/" ? `/register?redirect=${encodeURIComponent(redirectTo)}` : "/register"}
             className="font-medium text-amber-900 hover:underline"
           >
-            Register
+            {t("login.register")}
           </Link>
         </p>
       </main>
@@ -113,16 +125,19 @@ function LoginContent() {
   );
 }
 
+function LoginSuspenseFallback() {
+  const { t } = useLocale();
+  return (
+    <div className="min-h-full">
+      <ShopHeader />
+      <p className="p-8 text-center text-sm text-stone-500">{t("common.loading")}</p>
+    </div>
+  );
+}
+
 export default function LoginPage() {
   return (
-    <Suspense
-      fallback={
-        <div className="min-h-full">
-          <ShopHeader />
-          <p className="p-8 text-center text-sm text-stone-500">Loading…</p>
-        </div>
-      }
-    >
+    <Suspense fallback={<LoginSuspenseFallback />}>
       <LoginContent />
     </Suspense>
   );

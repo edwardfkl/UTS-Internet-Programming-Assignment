@@ -9,7 +9,14 @@ import {
   useState,
 } from "react";
 import { getStoredCartToken } from "@/lib/api";
-import { apiFetchUser, apiLogin, apiLogout, apiRegister, attachCartToUser } from "@/lib/authApi";
+import {
+  apiFetchUser,
+  apiLogin,
+  apiLogout,
+  apiRegister,
+  attachCartToUser,
+} from "@/lib/authApi";
+import { clearAdminWebSession, syncAdminWebSession } from "@/lib/adminSessionApi";
 import { clearAuthToken, getAuthToken, setAuthToken } from "@/lib/authToken";
 import type { AuthUser } from "@/lib/types";
 
@@ -24,6 +31,8 @@ type AuthContextValue = {
     passwordConfirmation: string,
   ) => Promise<void>;
   logout: () => Promise<void>;
+  /** Re-fetch `/api/user` (e.g. after profile or avatar URL changes). */
+  refreshUser: () => Promise<void>;
 };
 
 const AuthContext = createContext<AuthContextValue | null>(null);
@@ -67,6 +76,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     };
   }, []);
 
+  useEffect(() => {
+    if (!ready || !user?.is_admin) return;
+    void (async () => {
+      try {
+        await syncAdminWebSession();
+      } catch {
+        /* CORS / wrong browser origin vs CORS_ALLOWED_ORIGINS — admin still works via /admin/login */
+      }
+    })();
+  }, [ready, user?.id, user?.is_admin]);
+
   const login = useCallback(async (email: string, password: string) => {
     const { user: u, token } = await apiLogin(email, password);
     setAuthToken(token);
@@ -95,9 +115,25 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   );
 
   const logout = useCallback(async () => {
+    await clearAdminWebSession();
     try {
       await apiLogout();
     } finally {
+      clearAuthToken();
+      setUser(null);
+    }
+  }, []);
+
+  const refreshUser = useCallback(async () => {
+    const token = getAuthToken();
+    if (!token) {
+      setUser(null);
+      return;
+    }
+    try {
+      const u = await apiFetchUser(token);
+      setUser(u);
+    } catch {
       clearAuthToken();
       setUser(null);
     }
@@ -110,8 +146,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       login,
       register,
       logout,
+      refreshUser,
     }),
-    [user, ready, login, register, logout],
+    [user, ready, login, register, logout, refreshUser],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

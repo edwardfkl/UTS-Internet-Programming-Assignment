@@ -19,7 +19,16 @@ return [
 
     'allowed_methods' => ['*'],
 
-    'allowed_origins' => ['*'],
+    /*
+     * Cannot use * when supports_credentials is true. List every SPA origin that calls the API with cookies.
+     */
+    'allowed_origins' => array_values(array_filter(array_map(
+        'trim',
+        explode(',', (string) env(
+            'CORS_ALLOWED_ORIGINS',
+            'http://localhost:3000,http://127.0.0.1:3000',
+        )),
+    ))),
 
     'allowed_origins_patterns' => [],
 
@@ -29,6 +38,9 @@ return [
 
     'max_age' => 0,
 
-    'supports_credentials' => false,
+    'supports_credentials' => filter_var(
+        env('CORS_SUPPORTS_CREDENTIALS', true),
+        FILTER_VALIDATE_BOOL,
+    ),
 
 ];
