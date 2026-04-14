@@ -115,7 +115,7 @@ export async function fetchCart(token: string): Promise<CartResponse> {
     },
     cache: "no-store",
   });
-  if (res.status === 404 || res.status === 401) {
+  if (res.status === 404 || res.status === 401 || res.status === 403) {
     await createCartSession();
     return fetchCart(getStoredCartToken()!);
   }

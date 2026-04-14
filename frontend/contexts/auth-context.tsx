@@ -8,7 +8,7 @@ import {
   useMemo,
   useState,
 } from "react";
-import { getStoredCartToken } from "@/lib/api";
+import { getStoredCartToken, resetCartSession } from "@/lib/api";
 import {
   apiFetchUser,
   apiLogin,
@@ -43,7 +43,8 @@ async function linkGuestCartIfAny(): Promise<void> {
   try {
     await attachCartToUser(cart);
   } catch {
-    /* guest cart may already belong elsewhere */
+    // Existing token can belong to another account; rotate to a new cart for current user.
+    await resetCartSession();
   }
 }
 
