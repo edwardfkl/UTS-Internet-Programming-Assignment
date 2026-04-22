@@ -29,13 +29,13 @@ Route::middleware([
     EncryptCookies::class,
     AddQueuedCookiesToResponse::class,
     StartSession::class,
-    'auth:sanctum',
+    'jwt.auth',
 ])->group(function (): void {
     Route::post('/admin/web-session', [AdminWebSessionController::class, 'store']);
     Route::delete('/admin/web-session', [AdminWebSessionController::class, 'destroy']);
 });
 
-Route::middleware('auth:sanctum')->group(function () {
+Route::middleware('jwt.auth')->group(function () {
     Route::post('/logout', [AuthController::class, 'logout']);
     Route::get('/user', [AuthController::class, 'user']);
     Route::get('/profile', [ProfileController::class, 'show']);

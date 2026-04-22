@@ -7,7 +7,6 @@ use App\Models\OrderItem;
 use App\Models\Product;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
-use Laravel\Sanctum\Sanctum;
 use Tests\TestCase;
 
 class CartCheckoutEdgeCasesTest extends TestCase
@@ -114,9 +113,9 @@ class CartCheckoutEdgeCasesTest extends TestCase
     public function test_checkout_requires_cart_token(): void
     {
         $user = User::factory()->create();
-        Sanctum::actingAs($user);
 
-        $this->postJson('/api/checkout', $this->checkoutPayload())
+        $this->withToken($this->jwtTokenFor($user))
+            ->postJson('/api/checkout', $this->checkoutPayload())
             ->assertUnauthorized();
     }
 
@@ -128,9 +127,8 @@ class CartCheckoutEdgeCasesTest extends TestCase
             'status' => Order::STATUS_CART,
         ]);
 
-        Sanctum::actingAs($user);
-
-        $this->withHeader('X-Cart-Token', $order->token)
+        $this->withToken($this->jwtTokenFor($user))
+            ->withHeader('X-Cart-Token', $order->token)
             ->postJson('/api/checkout', $this->checkoutPayload())
             ->assertUnprocessable()
             ->assertJsonValidationErrors(['order']);
@@ -151,9 +149,8 @@ class CartCheckoutEdgeCasesTest extends TestCase
             'unit_price' => 10,
         ]);
 
-        Sanctum::actingAs($user);
-
-        $this->withHeader('X-Cart-Token', $order->token)
+        $this->withToken($this->jwtTokenFor($user))
+            ->withHeader('X-Cart-Token', $order->token)
             ->postJson('/api/checkout', $this->checkoutPayload())
             ->assertUnprocessable()
             ->assertJsonValidationErrors(['order']);
@@ -175,9 +172,8 @@ class CartCheckoutEdgeCasesTest extends TestCase
             'unit_price' => 10,
         ]);
 
-        Sanctum::actingAs($intruder);
-
-        $this->withHeader('X-Cart-Token', $order->token)
+        $this->withToken($this->jwtTokenFor($intruder))
+            ->withHeader('X-Cart-Token', $order->token)
             ->postJson('/api/checkout', $this->checkoutPayload())
             ->assertForbidden();
     }

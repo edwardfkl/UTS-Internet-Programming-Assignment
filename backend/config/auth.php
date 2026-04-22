@@ -119,4 +119,6 @@ return [
 
     'password_timeout' => env('AUTH_PASSWORD_TIMEOUT', 10800),
 
+    'jwt_ttl_minutes' => env('JWT_TTL_MINUTES', 120),
+
 ];

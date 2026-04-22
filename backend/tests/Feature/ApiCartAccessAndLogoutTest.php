@@ -7,7 +7,6 @@ use App\Models\OrderItem;
 use App\Models\Product;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
-use Illuminate\Support\Facades\Auth;
 use Tests\TestCase;
 
 class ApiCartAccessAndLogoutTest extends TestCase
@@ -34,7 +33,7 @@ class ApiCartAccessAndLogoutTest extends TestCase
             'user_id' => $user->id,
             'status' => Order::STATUS_CART,
         ]);
-        $plain = $user->createToken('cart-read')->plainTextToken;
+        $plain = $this->jwtTokenFor($user);
 
         $this->withToken($plain)
             ->withHeader('X-Cart-Token', $order->token)
@@ -46,16 +45,9 @@ class ApiCartAccessAndLogoutTest extends TestCase
     public function test_logout_invalidates_bearer_token(): void
     {
         $user = User::factory()->create();
-        $token = $user->createToken('t')->plainTextToken;
+        $token = $this->jwtTokenFor($user);
 
         $this->withToken($token)->postJson('/api/logout')->assertOk();
-
-        $this->assertSame(0, $user->fresh()->tokens()->count());
-
-        // Same PHP process: Sanctum may leave the resolved user on the auth manager between HTTP calls.
-        Auth::forgetGuards();
-        $this->flushSession();
-        $this->flushHeaders();
 
         $this->withToken($token)->getJson('/api/user')->assertUnauthorized();
     }
@@ -84,7 +76,7 @@ class ApiCartAccessAndLogoutTest extends TestCase
     public function test_new_cart_session_optionally_sets_user_id_when_bearer_present(): void
     {
         $user = User::factory()->create();
-        $token = $user->createToken('t')->plainTextToken;
+        $token = $this->jwtTokenFor($user);
 
         $response = $this->withToken($token)->postJson('/api/cart/sessions')->assertCreated();
 

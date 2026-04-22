@@ -7,7 +7,6 @@ use App\Models\OrderItem;
 use App\Models\Product;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
-use Laravel\Sanctum\Sanctum;
 use Tests\TestCase;
 
 class CommerceFlowTest extends TestCase
@@ -34,9 +33,8 @@ class CommerceFlowTest extends TestCase
             'status' => Order::STATUS_CART,
         ]);
 
-        Sanctum::actingAs($user);
-
-        $this->withHeader('X-Cart-Token', $order->token)
+        $this->withToken($this->jwtTokenFor($user))
+            ->withHeader('X-Cart-Token', $order->token)
             ->postJson('/api/cart/attach')
             ->assertOk()
             ->assertJson(['ok' => true]);
@@ -56,9 +54,8 @@ class CommerceFlowTest extends TestCase
             'status' => Order::STATUS_CART,
         ]);
 
-        Sanctum::actingAs($user);
-
-        $this->withHeader('X-Cart-Token', $order->token)
+        $this->withToken($this->jwtTokenFor($user))
+            ->withHeader('X-Cart-Token', $order->token)
             ->postJson('/api/cart/attach')
             ->assertForbidden();
     }
@@ -78,8 +75,6 @@ class CommerceFlowTest extends TestCase
             'unit_price' => 25.50,
         ]);
 
-        Sanctum::actingAs($user);
-
         $payload = [
             'payment_method' => 'pay_id',
             'shipping_recipient_name' => 'Test Recipient',
@@ -93,7 +88,8 @@ class CommerceFlowTest extends TestCase
             'save_to_profile' => true,
         ];
 
-        $this->withHeader('X-Cart-Token', $order->token)
+        $this->withToken($this->jwtTokenFor($user))
+            ->withHeader('X-Cart-Token', $order->token)
             ->postJson('/api/checkout', $payload)
             ->assertCreated()
             ->assertJsonPath('status', Order::STATUS_PENDING_PAYMENT)

@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\User;
+use App\Support\JwtService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -11,6 +12,10 @@ use Illuminate\Validation\Rules\Password;
 
 class AuthController extends Controller
 {
+    public function __construct(
+        private readonly JwtService $jwtService,
+    ) {}
+
     public function register(Request $request): JsonResponse
     {
         $data = $request->validate([
@@ -25,7 +30,7 @@ class AuthController extends Controller
             'password' => $data['password'],
         ]);
 
-        $token = $user->createToken('spa')->plainTextToken;
+        $token = $this->jwtService->issueToken($user);
 
         return response()->json([
             'user' => $this->userPayload($user),
@@ -47,8 +52,7 @@ class AuthController extends Controller
         }
 
         $user = User::query()->where('email', $data['email'])->firstOrFail();
-        $user->tokens()->delete();
-        $token = $user->createToken('spa')->plainTextToken;
+        $token = $this->jwtService->issueToken($user);
 
         return response()->json([
             'user' => $this->userPayload($user),
@@ -58,7 +62,10 @@ class AuthController extends Controller
 
     public function logout(Request $request): JsonResponse
     {
-        $request->user()->currentAccessToken()->delete();
+        $token = $request->bearerToken();
+        if ($token !== null) {
+            $this->jwtService->invalidateToken($token);
+        }
 
         return response()->json(['ok' => true]);
     }

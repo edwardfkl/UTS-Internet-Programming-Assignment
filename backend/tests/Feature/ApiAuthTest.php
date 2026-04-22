@@ -4,7 +4,6 @@ namespace Tests\Feature;
 
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
-use Laravel\Sanctum\Sanctum;
 use Tests\TestCase;
 
 class ApiAuthTest extends TestCase
@@ -79,9 +78,8 @@ class ApiAuthTest extends TestCase
     public function test_user_endpoint_returns_payload_when_authenticated(): void
     {
         $user = User::factory()->create(['name' => 'Tok']);
-        Sanctum::actingAs($user);
 
-        $this->getJson('/api/user')
+        $this->withToken($this->jwtTokenFor($user))->getJson('/api/user')
             ->assertOk()
             ->assertJsonPath('name', 'Tok');
     }
